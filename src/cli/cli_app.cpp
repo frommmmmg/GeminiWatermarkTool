@@ -175,12 +175,6 @@ void process_directory(
         }
         
         for (const auto& entry : it) {
-            if (iter_ec) {
-                spdlog::warn("Error during iteration: {}", iter_ec.message());
-                iter_ec.clear();
-                continue;
-            }
-            
             if (!entry.is_regular_file()) continue;
             
             if (!is_supported_image_format(entry.path().extension().string())) {
@@ -214,12 +208,6 @@ void process_directory(
         }
         
         for (const auto& entry : it) {
-            if (iter_ec) {
-                spdlog::warn("Error during iteration: {}", iter_ec.message());
-                iter_ec.clear();
-                continue;
-            }
-            
             if (!entry.is_regular_file()) continue;
             
             if (!is_supported_image_format(entry.path().extension().string())) {
