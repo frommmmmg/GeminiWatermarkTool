@@ -133,6 +133,63 @@ void process_single(
     }
 }
 
+bool is_supported_image_format(const std::string& ext) {
+    std::string ext_lower = ext;
+    std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(), ::tolower);
+    return ext_lower == ".jpg" || ext_lower == ".jpeg" || ext_lower == ".png" ||
+           ext_lower == ".webp" || ext_lower == ".bmp";
+}
+
+void process_directory(
+    const fs::path& input_dir,
+    const fs::path& output_dir,
+    bool remove,
+    WatermarkEngine& engine,
+    std::optional<WatermarkSize> force_size,
+    bool use_detection,
+    float detection_threshold,
+    bool recursive,
+    BatchResult& result
+) {
+    // Create output directory if it doesn't exist
+    if (!fs::exists(output_dir)) {
+        fs::create_directories(output_dir);
+    }
+
+    // Choose iterator based on recursive flag
+    if (recursive) {
+        for (const auto& entry : fs::recursive_directory_iterator(input_dir)) {
+            if (!entry.is_regular_file()) continue;
+            
+            if (!is_supported_image_format(entry.path().extension().string())) {
+                continue;
+            }
+
+            // Calculate relative path to preserve directory structure
+            fs::path relative_path = fs::relative(entry.path(), input_dir);
+            fs::path out_file = output_dir / relative_path;
+            
+            // Create subdirectories in output if needed
+            fs::create_directories(out_file.parent_path());
+            
+            process_single(entry.path(), out_file, remove, engine,
+                          force_size, use_detection, detection_threshold, result);
+        }
+    } else {
+        for (const auto& entry : fs::directory_iterator(input_dir)) {
+            if (!entry.is_regular_file()) continue;
+            
+            if (!is_supported_image_format(entry.path().extension().string())) {
+                continue;
+            }
+
+            fs::path out_file = output_dir / entry.path().filename();
+            process_single(entry.path(), out_file, remove, engine,
+                          force_size, use_detection, detection_threshold, result);
+        }
+    }
+}
+
 }  // anonymous namespace
 
 // =============================================================================
@@ -250,6 +307,10 @@ int run(int argc, char** argv) {
     app.add_flag("--force-small", force_small, "Force use of 48x48 watermark regardless of image size");
     app.add_flag("--force-large", force_large, "Force use of 96x96 watermark regardless of image size");
 
+    // Recursive directory processing
+    bool recursive = false;
+    app.add_flag("--recursive,-R", recursive, "Process subdirectories recursively");
+
     // Verbosity
     bool verbose = false;
     bool quiet = false;
@@ -312,27 +373,12 @@ int run(int argc, char** argv) {
         BatchResult result;
 
         if (fs::is_directory(input)) {
-            if (!fs::exists(output)) {
-                fs::create_directories(output);
-            }
+            std::string mode_str = recursive ? "recursively" : "non-recursively";
+            spdlog::info("Batch processing directory {}: {}", mode_str, input);
 
-            spdlog::info("Batch processing directory: {}", input);
-
-            for (const auto& entry : fs::directory_iterator(input)) {
-                if (!entry.is_regular_file()) continue;
-
-                std::string ext = entry.path().extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-                if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" &&
-                    ext != ".webp" && ext != ".bmp") {
-                    continue;
-                }
-
-                fs::path out_file = output / entry.path().filename();
-                process_single(entry.path(), out_file, remove_mode, engine,
-                              force_size, use_detection, detection_threshold, result);
-            }
+            process_directory(input, output, remove_mode, engine,
+                            force_size, use_detection, detection_threshold,
+                            recursive, result);
 
             result.print();
         } else {

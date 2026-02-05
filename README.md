@@ -97,6 +97,9 @@ GeminiWatermarkTool -i input.jpg -o output.jpg
 
 # Batch directory processing
 GeminiWatermarkTool -i ./watermarked_images/ -o ./clean_images/
+
+# Recursive batch processing (processes subdirectories)
+GeminiWatermarkTool -i ./watermarked_images/ -o ./clean_images/ --recursive
 ```
 
 ## Watermark Detection
@@ -236,6 +239,7 @@ Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`
 | `--input <path>` | `-i` | Input image file or directory |
 | `--output <path>` | `-o` | Output image file or directory |
 | `--remove` | `-r` | Remove watermark (default behavior) |
+| `--recursive` | `-R` | Process subdirectories recursively (preserves directory structure) |
 | `--force` | `-f` | Force processing (skip watermark detection) |
 | `--threshold <val>` | `-t` | Detection confidence threshold, 0.0–1.0 (default: 0.25) |
 | `--force-small` | | Force 48×48 watermark size |
