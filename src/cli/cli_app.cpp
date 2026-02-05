@@ -174,29 +174,45 @@ void process_directory(
             return;
         }
         
-        for (const auto& entry : it) {
-            if (!entry.is_regular_file()) continue;
-            
-            if (!is_supported_image_format(entry.path().extension().string())) {
-                continue;
-            }
+        try {
+            for (const auto& entry : it) {
+                try {
+                    // Check if entry is a regular file (may throw on race conditions)
+                    std::error_code status_ec;
+                    if (!entry.is_regular_file(status_ec)) continue;
+                    if (status_ec) {
+                        spdlog::debug("Cannot determine file status for {}: {}", 
+                                    entry.path().string(), status_ec.message());
+                        continue;
+                    }
+                    
+                    if (!is_supported_image_format(entry.path().extension().string())) {
+                        continue;
+                    }
 
-            // Calculate relative path to preserve directory structure
-            fs::path relative_path = fs::relative(entry.path(), input_dir);
-            fs::path out_file = output_dir / relative_path;
-            
-            // Create subdirectories in output if needed
-            std::error_code dir_ec;
-            fs::create_directories(out_file.parent_path(), dir_ec);
-            if (dir_ec) {
-                spdlog::warn("Failed to create output subdirectory {}: {}", 
-                           out_file.parent_path().string(), dir_ec.message());
-                result.failed++;
-                continue;
+                    // Calculate relative path to preserve directory structure
+                    fs::path relative_path = fs::relative(entry.path(), input_dir);
+                    fs::path out_file = output_dir / relative_path;
+                    
+                    // Create subdirectories in output if needed
+                    std::error_code dir_ec;
+                    fs::create_directories(out_file.parent_path(), dir_ec);
+                    if (dir_ec) {
+                        spdlog::warn("Failed to create output subdirectory {}: {}", 
+                                   out_file.parent_path().string(), dir_ec.message());
+                        result.failed++;
+                        continue;
+                    }
+                    
+                    process_single(entry.path(), out_file, remove, engine,
+                                  force_size, use_detection, detection_threshold, result);
+                } catch (const fs::filesystem_error& e) {
+                    spdlog::warn("Filesystem error processing {}: {}", entry.path().string(), e.what());
+                    result.failed++;
+                }
             }
-            
-            process_single(entry.path(), out_file, remove, engine,
-                          force_size, use_detection, detection_threshold, result);
+        } catch (const fs::filesystem_error& e) {
+            spdlog::error("Fatal filesystem error during iteration: {}", e.what());
         }
     } else {
         std::error_code iter_ec;
@@ -207,16 +223,32 @@ void process_directory(
             return;
         }
         
-        for (const auto& entry : it) {
-            if (!entry.is_regular_file()) continue;
-            
-            if (!is_supported_image_format(entry.path().extension().string())) {
-                continue;
-            }
+        try {
+            for (const auto& entry : it) {
+                try {
+                    // Check if entry is a regular file (may throw on race conditions)
+                    std::error_code status_ec;
+                    if (!entry.is_regular_file(status_ec)) continue;
+                    if (status_ec) {
+                        spdlog::debug("Cannot determine file status for {}: {}", 
+                                    entry.path().string(), status_ec.message());
+                        continue;
+                    }
+                    
+                    if (!is_supported_image_format(entry.path().extension().string())) {
+                        continue;
+                    }
 
-            fs::path out_file = output_dir / entry.path().filename();
-            process_single(entry.path(), out_file, remove, engine,
-                          force_size, use_detection, detection_threshold, result);
+                    fs::path out_file = output_dir / entry.path().filename();
+                    process_single(entry.path(), out_file, remove, engine,
+                                  force_size, use_detection, detection_threshold, result);
+                } catch (const fs::filesystem_error& e) {
+                    spdlog::warn("Filesystem error processing {}: {}", entry.path().string(), e.what());
+                    result.failed++;
+                }
+            }
+        } catch (const fs::filesystem_error& e) {
+            spdlog::error("Fatal filesystem error during iteration: {}", e.what());
         }
     }
 }
