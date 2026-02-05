@@ -136,7 +136,8 @@ void process_single(
 
 bool is_supported_image_format(const std::string& ext) {
     std::string ext_lower = ext;
-    std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(), ::tolower);
+    std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(), 
+                   [](unsigned char c) { return std::tolower(c); });
     return ext_lower == ".jpg" || ext_lower == ".jpeg" || ext_lower == ".png" ||
            ext_lower == ".webp" || ext_lower == ".bmp";
 }
