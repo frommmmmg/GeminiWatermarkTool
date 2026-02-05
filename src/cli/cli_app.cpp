@@ -153,20 +153,31 @@ void process_directory(
     BatchResult& result
 ) {
     // Create output directory if it doesn't exist
+    std::error_code ec;
     if (!fs::exists(output_dir)) {
-        fs::create_directories(output_dir);
+        fs::create_directories(output_dir, ec);
+        if (ec) {
+            spdlog::error("Failed to create output directory {}: {}", output_dir.string(), ec.message());
+            return;
+        }
     }
 
     // Choose iterator based on recursive flag
     if (recursive) {
         // Use directory_options to skip problematic entries
         auto options = fs::directory_options::skip_permission_denied;
-        std::error_code ec;
+        std::error_code iter_ec;
         
-        for (const auto& entry : fs::recursive_directory_iterator(input_dir, options, ec)) {
-            if (ec) {
-                spdlog::warn("Error iterating directory: {}", ec.message());
-                ec.clear();
+        auto it = fs::recursive_directory_iterator(input_dir, options, iter_ec);
+        if (iter_ec) {
+            spdlog::error("Failed to iterate directory {}: {}", input_dir.string(), iter_ec.message());
+            return;
+        }
+        
+        for (const auto& entry : it) {
+            if (iter_ec) {
+                spdlog::warn("Error during iteration: {}", iter_ec.message());
+                iter_ec.clear();
                 continue;
             }
             
@@ -181,18 +192,31 @@ void process_directory(
             fs::path out_file = output_dir / relative_path;
             
             // Create subdirectories in output if needed
-            fs::create_directories(out_file.parent_path());
+            std::error_code dir_ec;
+            fs::create_directories(out_file.parent_path(), dir_ec);
+            if (dir_ec) {
+                spdlog::warn("Failed to create output subdirectory {}: {}", 
+                           out_file.parent_path().string(), dir_ec.message());
+                result.failed++;
+                continue;
+            }
             
             process_single(entry.path(), out_file, remove, engine,
                           force_size, use_detection, detection_threshold, result);
         }
     } else {
-        std::error_code ec;
+        std::error_code iter_ec;
         
-        for (const auto& entry : fs::directory_iterator(input_dir, ec)) {
-            if (ec) {
-                spdlog::warn("Error iterating directory: {}", ec.message());
-                ec.clear();
+        auto it = fs::directory_iterator(input_dir, iter_ec);
+        if (iter_ec) {
+            spdlog::error("Failed to iterate directory {}: {}", input_dir.string(), iter_ec.message());
+            return;
+        }
+        
+        for (const auto& entry : it) {
+            if (iter_ec) {
+                spdlog::warn("Error during iteration: {}", iter_ec.message());
+                iter_ec.clear();
                 continue;
             }
             
