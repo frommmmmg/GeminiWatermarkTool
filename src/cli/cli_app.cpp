@@ -223,34 +223,40 @@ void process_directory(
         auto options = fs::directory_options::skip_permission_denied;
         std::error_code iter_ec;
         
+        // Create iterator and check for initialization errors
+        auto iter_begin = fs::recursive_directory_iterator(input_dir, options, iter_ec);
+        if (iter_ec) {
+            spdlog::error("Failed to initialize directory iterator for {}: {}", 
+                        input_dir.string(), iter_ec.message());
+            return;
+        }
+        
         try {
-            for (const auto& entry : fs::recursive_directory_iterator(input_dir, options, iter_ec)) {
-                if (iter_ec) {
-                    spdlog::warn("Error during iteration: {}", iter_ec.message());
-                    iter_ec.clear();
-                    continue;
-                }
+            for (const auto& entry : fs::recursive_directory_iterator(iter_begin)) {
                 process_entry(entry, input_dir, output_dir, remove, engine,
                             force_size, use_detection, detection_threshold, true, result);
             }
         } catch (const fs::filesystem_error& e) {
-            spdlog::error("Failed to iterate directory {}: {}", input_dir.string(), e.what());
+            spdlog::error("Filesystem error during iteration: {}", e.what());
         }
     } else {
         std::error_code iter_ec;
         
+        // Create iterator and check for initialization errors
+        auto iter_begin = fs::directory_iterator(input_dir, iter_ec);
+        if (iter_ec) {
+            spdlog::error("Failed to initialize directory iterator for {}: {}", 
+                        input_dir.string(), iter_ec.message());
+            return;
+        }
+        
         try {
-            for (const auto& entry : fs::directory_iterator(input_dir, iter_ec)) {
-                if (iter_ec) {
-                    spdlog::warn("Error during iteration: {}", iter_ec.message());
-                    iter_ec.clear();
-                    continue;
-                }
+            for (const auto& entry : fs::directory_iterator(iter_begin)) {
                 process_entry(entry, input_dir, output_dir, remove, engine,
                             force_size, use_detection, detection_threshold, false, result);
             }
         } catch (const fs::filesystem_error& e) {
-            spdlog::error("Failed to iterate directory {}: {}", input_dir.string(), e.what());
+            spdlog::error("Filesystem error during iteration: {}", e.what());
         }
     }
 }
