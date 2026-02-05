@@ -225,6 +225,8 @@ void process_directory(
         
         // Create iterator and check for initialization errors
         auto iter_begin = fs::recursive_directory_iterator(input_dir, options, iter_ec);
+        auto iter_end = fs::recursive_directory_iterator();
+        
         if (iter_ec) {
             spdlog::error("Failed to initialize directory iterator for {}: {}", 
                         input_dir.string(), iter_ec.message());
@@ -232,8 +234,8 @@ void process_directory(
         }
         
         try {
-            for (const auto& entry : fs::recursive_directory_iterator(iter_begin)) {
-                process_entry(entry, input_dir, output_dir, remove, engine,
+            for (auto it = iter_begin; it != iter_end; ++it) {
+                process_entry(*it, input_dir, output_dir, remove, engine,
                             force_size, use_detection, detection_threshold, true, result);
             }
         } catch (const fs::filesystem_error& e) {
@@ -244,6 +246,8 @@ void process_directory(
         
         // Create iterator and check for initialization errors
         auto iter_begin = fs::directory_iterator(input_dir, iter_ec);
+        auto iter_end = fs::directory_iterator();
+        
         if (iter_ec) {
             spdlog::error("Failed to initialize directory iterator for {}: {}", 
                         input_dir.string(), iter_ec.message());
@@ -251,8 +255,8 @@ void process_directory(
         }
         
         try {
-            for (const auto& entry : fs::directory_iterator(iter_begin)) {
-                process_entry(entry, input_dir, output_dir, remove, engine,
+            for (auto it = iter_begin; it != iter_end; ++it) {
+                process_entry(*it, input_dir, output_dir, remove, engine,
                             force_size, use_detection, detection_threshold, false, result);
             }
         } catch (const fs::filesystem_error& e) {
