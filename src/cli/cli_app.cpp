@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <string>
+#include <system_error>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -158,7 +159,17 @@ void process_directory(
 
     // Choose iterator based on recursive flag
     if (recursive) {
-        for (const auto& entry : fs::recursive_directory_iterator(input_dir)) {
+        // Use directory_options to skip problematic entries
+        auto options = fs::directory_options::skip_permission_denied;
+        std::error_code ec;
+        
+        for (const auto& entry : fs::recursive_directory_iterator(input_dir, options, ec)) {
+            if (ec) {
+                spdlog::warn("Error iterating directory: {}", ec.message());
+                ec.clear();
+                continue;
+            }
+            
             if (!entry.is_regular_file()) continue;
             
             if (!is_supported_image_format(entry.path().extension().string())) {
@@ -176,7 +187,15 @@ void process_directory(
                           force_size, use_detection, detection_threshold, result);
         }
     } else {
-        for (const auto& entry : fs::directory_iterator(input_dir)) {
+        std::error_code ec;
+        
+        for (const auto& entry : fs::directory_iterator(input_dir, ec)) {
+            if (ec) {
+                spdlog::warn("Error iterating directory: {}", ec.message());
+                ec.clear();
+                continue;
+            }
+            
             if (!entry.is_regular_file()) continue;
             
             if (!is_supported_image_format(entry.path().extension().string())) {
